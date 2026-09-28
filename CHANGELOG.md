@@ -2,6 +2,13 @@
 
 ## 1.0.2 (2026-09-28)
 
+- A soft carousel cover is a note, not a stop. Typical Airbnb galleries score 37-53 against
+  the crispness bar of 80, so the gate fired on nearly every first try. The check now prints
+  the note, the slide renders (sharpened harder), and Claude offers the 7-cent photo fix
+  after the host has seen the preview. `soft_ok` is still accepted and only silences the note.
+
+## 1.0.2 (2026-09-28)
+
 - One content skill, not two. If an earlier copy of this skill is installed under another
   folder name (the summit guide linked an earlier build for a day), setup now carries its
   KIE key over and moves it from `~/.claude/skills` to `~/.claude/skills-retired`, so

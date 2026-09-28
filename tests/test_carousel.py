@@ -465,20 +465,22 @@ class Sharpness(unittest.TestCase):
         carousel.prep_photo(d / "soft.jpg", {}, 1080 / 1350, d / "n2.jpg", "none")
         self.assertEqual(Image.open(d / "n1.jpg").tobytes(), Image.open(d / "n2.jpg").tobytes())
 
-    def test_a_soft_cover_fails_the_check_with_the_way_out(self):
+    def test_a_soft_cover_is_a_note_with_the_offer_not_a_stop(self):
         d = pathlib.Path(tempfile.mkdtemp())
         (d / "source/full").mkdir(parents=True)
         _windows(blur=6).save(d / "source/full/01.jpg", quality=95)
         _windows().save(d / "source/full/02.jpg", quality=95)
         plan = {"slides": [{"t": "cover", "id": "01", "photo": "01"}]}
-        errs = carousel.check_cover_sharpness(plan, d)
-        self.assertEqual(len(errs), 1)
-        self.assertIn("soft", errs[0])
-        self.assertIn('"source": "fixed"', errs[0])
-        plan["slides"][0]["soft_ok"] = True     # the host declined a crisper photo and the fix
-        self.assertEqual(carousel.check_cover_sharpness(plan, d), [])
+        notes = carousel.cover_sharpness_notes(plan, d)
+        self.assertEqual(len(notes), 1)
+        self.assertIn("soft", notes[0])
+        self.assertIn("renders anyway", notes[0])
+        self.assertIn('"source": "fixed"', notes[0])
+        self.assertFalse(hasattr(carousel, "check_cover_sharpness"))   # no gate on crispness any more
+        plan["slides"][0]["soft_ok"] = True     # older plans may carry it; it just silences the note
+        self.assertEqual(carousel.cover_sharpness_notes(plan, d), [])
         plan = {"slides": [{"t": "cover", "id": "01", "photo": "02"}, {"t": "room", "id": "02", "photo": "01"}]}
-        self.assertEqual(carousel.check_cover_sharpness(plan, d), [])   # only the cover is held to it
+        self.assertEqual(carousel.cover_sharpness_notes(plan, d), [])   # only the cover gets the note
 
 
 def _browser_or_none():
