@@ -82,5 +82,27 @@ class Reruns(unittest.TestCase):
         self.assertFalse((out / "source" / "full.new").exists())
 
 
+    def test_a_locked_old_gallery_is_a_plain_error_not_a_traceback(self):
+        out = pathlib.Path(tempfile.mkdtemp())
+        page = {"html": " ".join(f'"https://a0.muscache.com/im/pictures/miso/Hosting-{LID}/original/p{i:02d}.jpeg"'
+                                 for i in range(9)), "sections": {}, "reviews": [], "images": [], "url": "u"}
+
+        def ok_fetch(url, dest, tries=3):
+            Image.new("RGB", (64, 48), "blue").save(dest, "JPEG")
+            return True
+        real_rmtree = listing_pull.shutil.rmtree
+
+        def stuck_rmtree(path, ignore_errors=False):
+            if pathlib.Path(path).name == "full":
+                return            # Windows: a viewer holds the files, nothing is removed
+            real_rmtree(path, ignore_errors=ignore_errors)
+        with mock.patch.object(listing_pull, "fetch", side_effect=ok_fetch):
+            self.assertEqual(listing_pull.pull_url(f"https://www.airbnb.com/rooms/{LID}", out, render=lambda u: page), 0)
+            with mock.patch.object(listing_pull.shutil, "rmtree", side_effect=stuck_rmtree):
+                self.assertEqual(listing_pull.pull_url(f"https://www.airbnb.com/rooms/{LID}", out,
+                                                       render=lambda u: page), 2)
+        self.assertEqual(len(list((out / "source" / "full").glob("*.jpg"))), 9)
+
+
 if __name__ == "__main__":
     unittest.main()

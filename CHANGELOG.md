@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4 (2026-09-28)
+
+- A listing re-pull on Windows while a photo from the old pull is open (a viewer, File
+  Explorer's preview) now stops with a plain message and keeps the old photos, instead of a
+  traceback. Found in a final review pass.
+
 ## 1.0.3 (2026-09-28)
 
 - KIE's own failures retry themselves. A clip KIE fails on its side ("Internal Error,
