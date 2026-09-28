@@ -870,21 +870,23 @@ def choose_photo_layout(R, s, B, img, logo):
     return a, B["ink"], "panel", 0, r, e, len(tried) + 1
 
 
-def check_cover_sharpness(plan, pdir):
-    """The cover sells the post, so a soft one fails the check (see SOFT_EDGE)."""
-    errs = []
+def cover_sharpness_notes(plan, pdir):
+    """A soft cover is a NOTE, never a stop (Ryan, 2026-09-28: typical Airbnb galleries score
+    37-53 against SOFT_EDGE, so a gate fired on nearly every first try). The slide still
+    renders, sharpened harder; the note tells Claude to OFFER the photo fix afterwards."""
+    notes = []
     for s in plan["slides"]:
         if s["t"] == "cover" and s.get("photo") and not s.get("soft_ok"):
             f = photo_path(pdir, plan, s["photo"], s.get("source"))
             if f.exists():
                 c = crispness(slide_crop(f, s, W / H))
                 if c < SOFT_EDGE:
-                    errs.append(
-                        f"photo: slide {s['id']}: the cover photo {s['photo']} is soft (crispness {c}, needs "
-                        f"{SOFT_EDGE}). The cover sells the post: use a crisper photo, or offer the photo fix "
-                        f"for it (then \"source\": \"fixed\"), or, only if the host declines both, add "
-                        f"\"soft_ok\": true to the cover")
-    return errs
+                    notes.append(
+                        f"slide {s['id']}: the cover photo {s['photo']} is soft (crispness {c}, under "
+                        f"{SOFT_EDGE}). It renders anyway, sharpened harder. After the host sees the preview, "
+                        f"offer the photo fix for it (about 7 cents) and use it with \"source\": \"fixed\" if "
+                        f"they say yes; a crisper photo from the gallery also works")
+    return notes
 
 
 def gate(plan, pdir):
@@ -923,7 +925,8 @@ def gate(plan, pdir):
             f = photo_path(pdir, plan, p["photo"], p.get("source", s.get("source")))
             if not f.exists():
                 problems.append(f"photo: slide {s['id']}: {f} not found")
-    problems += check_cover_sharpness(plan, pdir)
+    for n in cover_sharpness_notes(plan, pdir):
+        out("note: " + n)
     logo = None
     if B.get("logo"):
         logo = usable_logo((pdir / plan["brand"]).parent / B["logo"])
