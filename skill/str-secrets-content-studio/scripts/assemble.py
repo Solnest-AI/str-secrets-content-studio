@@ -38,6 +38,29 @@ def timeline(durs, trim, xfade, ending_secs=0.0):
     return used, offsets, round(run_len + ending_secs, 3)
 
 
+def stale_clips(cdir, order, results):
+    """Beats whose clip was made from something other than what plan.json says now (a
+    changed photo, prompt, length or shape), so the video would not match the plan.
+    Empty when there is no plan.json beside the clips or no fingerprints were recorded."""
+    plan_file = cdir.parent / "plan.json"
+    if not plan_file.is_file():
+        return []
+    try:
+        import make_clips
+        _, _, aspect, duration, beats, _ = make_clips.load_plan(plan_file)
+    except Exception:
+        return []
+    stale = []
+    for b in beats:
+        if b["name"] not in order:
+            continue
+        r = results.get(b["name"]) or {}
+        fp = r.get("fingerprint")
+        if fp and fp != make_clips.beat_fingerprint(b, duration, aspect):
+            stale.append(b["name"])
+    return stale
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -49,6 +72,8 @@ def main(argv=None):
     ap.add_argument("--xfade", type=float, default=0.6)
     ap.add_argument("--no-preview", action="store_true",
                     help="skip the small VIEW-*.mp4 preview copy")
+    ap.add_argument("--without-ending", action="store_true",
+                    help="ship without the closing shot even though the plan has one")
     a = ap.parse_args(argv)
 
     cdir = pathlib.Path(a.clips_dir)
@@ -61,12 +86,23 @@ def main(argv=None):
     missing = [n for n in order if not results.get(n, {}).get("ok")
                or not (cdir / f"{n}.mp4").is_file()]
     if missing:
-        print(f"ERROR: clips not ready: {missing}. Regenerate them with make_clips.py --only")
+        print(f"ERROR: clips not ready: {missing}. Run make_clips.py again (it resumes), or "
+              "--only to regenerate")
+        return 1
+    stale = stale_clips(cdir, order, results)
+    if stale:
+        print(f"ERROR: {stale} were generated from a different photo, prompt, length or shape "
+              "than plan.json has now. Run make_clips.py again so the video matches the plan.")
         return 1
     ending = state.get("ending")
     end_clip = cdir / f"{ending}.mp4" if ending else None
     if end_clip and not (results.get(ending, {}).get("ok") and end_clip.is_file()):
-        print("NOTE: no closing shot available, finishing on the last beat instead.")
+        if not a.without_ending:
+            print("ERROR: the plan has a closing shot but it is not ready. Run make_clips.py "
+                  "again (it resumes or regenerates it), or pass --without-ending to ship "
+                  "the video without it on purpose.")
+            return 1
+        print("NOTE: shipping without the closing shot, as asked.")
         end_clip = None
     music = pathlib.Path(a.music) if a.music else None
     if music and not music.is_file():

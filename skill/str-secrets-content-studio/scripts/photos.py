@@ -184,8 +184,24 @@ def read_urls(path):
             if line.strip() and not line.startswith("#")]
 
 
+def clear_numbered(folder):
+    """Remove NN.jpg-style files from an earlier pull so a rerun (or a different listing
+    under the same slug) can never leave old photos next to the new ones."""
+    folder = pathlib.Path(folder)
+    if not folder.is_dir():
+        return 0
+    gone = 0
+    for p in folder.iterdir():
+        if p.is_file() and p.stem.isdigit() and p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"):
+            p.unlink()
+            gone += 1
+    return gone
+
+
 def save_thumbs(urls, out, workers):
     n = len(urls)
+    clear_numbered(out / "thumbs")
+    clear_numbered(out)
     print(f"downloading {n} thumbnails ({THUMB_W}px) to {out / 'thumbs'} ...", flush=True)
     jobs = {i: (sized(u, THUMB_W), out / "thumbs" / f"{numbered(i, n)}{ext_of(u)}")
             for i, u in enumerate(urls, 1)}

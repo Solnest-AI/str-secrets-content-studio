@@ -98,10 +98,33 @@ def parse_reviews(items):
     return reviews
 
 
+ANY_PHOTO = re.compile(r"https://a0\.muscache\.com/im/pictures/[A-Za-z0-9/._%-]+?\.(?:jpe?g|png|webp)", re.I)
+NOT_LISTING = ("/im/pictures/user/", "/im/users/", "airbnb-platform-assets", "/mediaverse/",
+               "hosting-avatar", "/im/pictures/host/")
+
+
 def photo_urls(html, listing_id):
-    pat = re.compile(r"https://a0\.muscache\.com/im/pictures/[A-Za-z0-9/_-]*Hosting-" + re.escape(str(listing_id))
+    """This listing's own photos (the Hosting-<id> URL form newer listings use), deduped,
+    in page order."""
+    pat = re.compile(r"https://a0\.muscache\.com/im/pictures/[A-Za-z0-9/._%-]*Hosting-" + re.escape(str(listing_id))
                      + r"/original/[A-Za-z0-9-]+\.(?:jpeg|jpg|png|webp)")
     return list(dict.fromkeys(pat.findall(html)))
+
+
+def gallery_urls(html, listing_id):
+    """(urls, own). own is True when the Hosting-<id> form matched; otherwise (older
+    listings whose photo URLs carry no listing id, measured 2026-09-28) every listing
+    photo on the page is taken, minus avatars and platform art, and the caller warns that
+    the similar-listings carousel may be mixed in."""
+    own = photo_urls(html, listing_id)
+    if own:
+        return own, True
+    text = html.replace("\\u002F", "/").replace("\\/", "/")
+    urls = []
+    for u in ANY_PHOTO.findall(text):
+        if u not in urls and not any(s in u for s in NOT_LISTING):
+            urls.append(u)
+    return urls, False
 
 
 def amenity_titles(html):
@@ -239,20 +262,36 @@ def pull_url(url, outdir, render=render_page, minimum=MIN_PHOTOS):
         out(f"ERROR: could not open the listing ({e}).\n{FOLDER_FIX}")
         return 2
     html, sections = page.get("html", ""), page.get("sections") or {}
-    urls = photo_urls(html, lid) if lid else list(dict.fromkeys(page.get("images") or []))
+    own = True
+    if lid:
+        urls, own = gallery_urls(html, lid)
+    else:
+        urls = list(dict.fromkeys(page.get("images") or []))
     if len(urls) < minimum:
         out(f"ERROR: found only {len(urls)} listing photos (need {minimum}). The site blocked the "
             f"browser or changed its layout.\n{FOLDER_FIX}")
         return 2
+    if lid and not own:
+        out("note: this listing's photo URLs carry no listing id, so the page's similar-listings "
+            "pictures may be mixed in. Check the sheet with care and skip anything that is not this property.")
 
-    (src / "full").mkdir(parents=True, exist_ok=True)
-    jobs = [(u + ("?im_w=2560" if lid else ""), src / "full" / f"{i:02d}.jpg") for i, u in enumerate(urls, 1)]
+    # download into a staging folder, then swap it in: a rerun of the same slug never keeps
+    # photos from an earlier (or a different) listing, and a failed pull leaves the old
+    # gallery untouched
+    staging = src / "full.new"
+    shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir(parents=True, exist_ok=True)
+    jobs = [(u + ("?im_w=2560" if lid else ""), staging / f"{i:02d}.jpg") for i, u in enumerate(urls, 1)]
     with cf.ThreadPoolExecutor(max_workers=6) as ex:
         got = list(ex.map(lambda j: fetch(*j), jobs))
     missing = [j[1].stem for j, ok in zip(jobs, got) if not ok]
     if sum(got) < minimum:
+        shutil.rmtree(staging, ignore_errors=True)
         out(f"ERROR: only {sum(got)} photos downloaded.\n{FOLDER_FIX}")
         return 2
+    shutil.rmtree(src / "full", ignore_errors=True)
+    shutil.rmtree(src / "thumbs", ignore_errors=True)
+    staging.rename(src / "full")
     make_thumbs_and_sheet(src)
     (src / "_urls.txt").write_text("\n".join(urls) + "\n", encoding="utf-8")
 
@@ -294,6 +333,8 @@ def pull_folder(folder, outdir, facts_file=None, minimum=5):
     if len(files) < minimum:
         out(f"ERROR: {len(files)} usable photos in {folder} (need at least {minimum}, JPG/PNG/WEBP).")
         return 2
+    shutil.rmtree(src / "full", ignore_errors=True)      # never mix in an earlier pull's photos
+    shutil.rmtree(src / "thumbs", ignore_errors=True)
     (src / "full").mkdir(parents=True, exist_ok=True)
     for i, p in enumerate(files, 1):
         ImageOps.exif_transpose(Image.open(p)).convert("RGB").save(src / "full" / f"{i:02d}.jpg", quality=95)

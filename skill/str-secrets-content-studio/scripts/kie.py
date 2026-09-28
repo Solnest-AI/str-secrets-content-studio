@@ -11,6 +11,10 @@ documented KIE failure mode:
   * a job can sit "generating" forever         -> hard timeout, never poll forever
   * rate limit ~20 new requests / 10s          -> small worker pool + jittered backoff
   * upload docs say fileUrl, the API returns downloadUrl -> accept both
+  * ONE paid task per clip, ever (Codex review 2026-09-28): a failed poll or download is
+    retried against the SAME task; a second task is only created when Claude asks for a
+    redo explicitly (make_clips.py --only). Downloads land in a .part file and are checked
+    to be real media before they replace anything.
 
 Output is ASCII only, so it cannot crash a Windows console with an encoding error.
 
@@ -21,6 +25,7 @@ import json
 import os
 import pathlib
 import random
+import shutil
 import sys
 import time
 import urllib.error
@@ -43,6 +48,9 @@ USD_PER_CREDIT = 0.005
 VEO_SLUG = "veo-3-1"
 VEO_CREDITS_PER_CLIP = 65
 VEO_DURATIONS = (4, 6, 8)
+
+IMAGE_MAGIC = (b"\xff\xd8", b"\x89PNG", b"RIFF")
+MIN_MEDIA_BYTES = {"video": 20000, "image": 1000}
 
 SKILL_DIR = pathlib.Path(__file__).resolve().parent.parent
 
@@ -164,8 +172,21 @@ def call(path, body=None, timeout=120):
     return payload
 
 
+def transient(err):
+    """True for errors worth retrying against the same task: no answer from KIE at all."""
+    s = str(err)
+    return s.startswith("cannot reach") or "not JSON" in s or s.startswith("HTTP 5")
+
+
 def credits():
-    return float(call("/chat/credit")["data"])
+    """The account balance in credits. KIE answers {"data": 123.0}; a dict is tolerated."""
+    data = call("/chat/credit").get("data")
+    if isinstance(data, dict):
+        data = data.get("credits", data.get("balance"))
+    try:
+        return float(data)
+    except (TypeError, ValueError):
+        raise KieError(f"KIE /chat/credit answered with an unexpected balance: {str(data)[:80]!r}")
 
 
 def upload(path, name=None):
@@ -182,86 +203,148 @@ def upload(path, name=None):
         try:
             with urllib.request.urlopen(req, timeout=240) as r:
                 d = json.loads(r.read().decode("utf-8")).get("data") or {}
-            url = d.get("downloadUrl") or d.get("fileUrl")
+            url = d.get("downloadUrl") or d.get("fileUrl") if isinstance(d, dict) else None
             if url:
                 return url
-            last = KieError(f"upload returned no URL, keys={list(d.keys())}")
-        except (urllib.error.URLError, TimeoutError) as e:
+            last = KieError(f"upload returned no URL, keys={list(d.keys()) if isinstance(d, dict) else d}")
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
             last = e
         time.sleep(3 * attempt + random.uniform(0, 2))
     raise KieError(f"upload failed for {p.name}: {last}")
 
 
 def extract_urls(record):
-    """KIE returns result URLs in at least three different shapes."""
+    """KIE returns result URLs in at least three different shapes. Never raises."""
+    if not isinstance(record, dict):
+        return []
     rj = record.get("resultJson")
-    d = json.loads(rj) if isinstance(rj, str) else (rj or {})
-    if d.get("resultUrls"):
+    try:
+        d = json.loads(rj) if isinstance(rj, str) else (rj or {})
+    except ValueError:
+        return []
+    if not isinstance(d, dict):
+        return []
+    if isinstance(d.get("resultUrls"), list) and d["resultUrls"]:
         return d["resultUrls"]
     inner = d.get("data") or {}
-    for key in ("result_urls", "resultUrls", "origin_urls"):
-        if inner.get(key):
-            return inner[key]
+    if isinstance(inner, dict):
+        for key in ("result_urls", "resultUrls", "origin_urls"):
+            if isinstance(inner.get(key), list) and inner[key]:
+                return inner[key]
     return []
 
 
-def download(url, dest):
+def looks_like_media(path, kind):
+    """First bytes of a real MP4/MOV ('ftyp' at offset 4) or a real JPEG/PNG/WEBP."""
+    with open(path, "rb") as f:
+        head = f.read(16)
+    if kind == "video":
+        return head[4:8] == b"ftyp"
+    return head.startswith(IMAGE_MAGIC)
+
+
+def download(url, dest, kind="video", tries=3):
+    """Download a result to dest. It goes to a .part file first and is checked to be real
+    media of the right kind and size before it replaces dest, so a truncated transfer or
+    an HTML error page can never pass as a clip or a photo. Retries the download only;
+    nothing here can create a task."""
     dest = pathlib.Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=300) as r, open(dest, "wb") as f:
-        f.write(r.read())
-    size = dest.stat().st_size
-    if size == 0:
-        raise KieError(f"downloaded an empty file to {dest}")
-    return size
+    part = dest.with_name(dest.name + ".part")
+    last = None
+    for attempt in range(1, tries + 1):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=300) as r, open(part, "wb") as f:
+                shutil.copyfileobj(r, f, 1024 * 1024)
+            size = part.stat().st_size
+            if size < MIN_MEDIA_BYTES.get(kind, 1000):
+                raise KieError(f"downloaded only {size} bytes")
+            if not looks_like_media(part, kind):
+                raise KieError(f"the download is not a {kind} file")
+            part.replace(dest)
+            return size
+        except (KieError, urllib.error.URLError, TimeoutError, OSError) as e:
+            last = e
+            try:
+                part.unlink()
+            except OSError:
+                pass
+            if attempt < tries:
+                time.sleep(2 * attempt + random.uniform(0, 1))
+    raise KieError(f"download failed after {tries} tries: {last}")
+
+
+def create_task(body):
+    """Exactly one createTask call. It is never retried: a timeout may mean the task was
+    created (and billed) even though no answer arrived, and the caller has no way to tell."""
+    r = call("/jobs/createTask", body)
+    data = r.get("data")
+    tid = data.get("taskId") if isinstance(data, dict) else None
+    if not tid:
+        raise KieError(f"no taskId in KIE's answer: {str(r)[:200]}")
+    return str(tid)
+
+
+def wait_task(tid, max_wait=900, poll=6):
+    """Poll ONE task until it succeeds or fails. Network hiccups while polling are retried
+    until the deadline. Returns (state, record); raises KieError on timeout or a real
+    KIE error (bad key, ...). Never creates a task."""
+    deadline = time.time() + max_wait
+    state, rec, last_err = None, {}, None
+    while time.time() < deadline:
+        time.sleep(poll)
+        try:
+            data = call(f"/jobs/recordInfo?taskId={tid}").get("data")
+        except KieError as e:
+            if transient(e):
+                last_err = e
+                continue
+            raise
+        rec = data if isinstance(data, dict) else {}
+        state = rec.get("state")
+        if state in ("success", "fail"):
+            return state, rec
+    raise KieError(f"task {tid} still '{state}' after {max_wait}s"
+                   + (f" (last error: {last_err})" if last_err else "")
+                   + "; credits may still be charged. Re-run with --only to resume it.")
 
 
 def veo_clip(image_url, prompt, dest, *, duration=6, aspect="9:16", resolution="1080p",
-             max_wait=900, attempts=2, label=""):
+             max_wait=900, label="", task_id=None):
     """One Veo 3.1 clip from ONE start image. Never pass a last frame: two anchors
     make the model cross-dissolve into the end image and invent the gap (measured on
     Veo, Kling and PixVerse, 2026-09-20). Veo cannot turn audio off; the assembler
-    drops it."""
+    drops it.
+
+    Money rule: this creates at most ONE paid task (none when task_id is given: that
+    resumes an earlier one). A failed poll or download is retried against that same
+    task. Anything unrecoverable comes back as {"ok": False, "task": tid, ...} so the
+    caller can save the task id and Claude can decide, explicitly, to spend again."""
     if duration not in VEO_DURATIONS:
         raise KieError(f"Veo duration must be one of {VEO_DURATIONS}, got {duration}")
-    last_err = None
-    for attempt in range(1, attempts + 1):
-        t0 = time.time()
-        try:
-            r = call("/jobs/createTask", {"model": VEO_SLUG, "input": {
+    t0 = time.time()
+    tid = task_id
+    try:
+        if not tid:
+            tid = create_task({"model": VEO_SLUG, "input": {
                 "prompt": prompt, "image_urls": [image_url],        # ONE anchor, always
                 "generation_type": "FIRST_AND_LAST_FRAMES_2_VIDEO",
                 "duration": duration, "resolution": resolution, "aspect_ratio": aspect}})
-            tid = (r.get("data") or {}).get("taskId")
-            if not tid:
-                raise KieError("no taskId returned")
-            deadline = time.time() + max_wait
-            state, rec = None, {}
-            while time.time() < deadline:
-                time.sleep(6)
-                rec = call(f"/jobs/recordInfo?taskId={tid}").get("data") or {}
-                state = rec.get("state")
-                if state in ("success", "fail"):
-                    break
-            else:
-                raise KieError(f"stuck in '{state}' past {max_wait}s (task {tid}); "
-                               "credits may still be charged")
-            if state != "success":
-                raise KieError(f"generation failed: "
-                               f"{rec.get('failMsg') or rec.get('errorMessage')}")
-            urls = extract_urls(rec)
-            if not urls:
-                raise KieError(f"success but no result URL, keys={list(rec.keys())}")
-            size = download(urls[0], dest)     # ~14-day expiry: grab it now
-            return {"ok": True, "task": tid, "attempt": attempt,
-                    "seconds": round(time.time() - t0, 1), "bytes": size, "file": str(dest)}
-        except (KieError, urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
-            last_err = e
-            print(f"  {label} attempt {attempt} failed: {e}", flush=True)
-            if attempt < attempts:
-                time.sleep(4 * attempt + random.uniform(0, 2))
-    return {"ok": False, "error": str(last_err)[:300]}
+        state, rec = wait_task(tid, max_wait)
+        if state != "success":
+            return {"ok": False, "task": tid, "state": "fail",
+                    "error": f"generation failed: {rec.get('failMsg') or rec.get('errorMessage')}"}
+        urls = extract_urls(rec)
+        if not urls:
+            return {"ok": False, "task": tid, "state": "success",
+                    "error": f"success but no result URL, keys={list(rec.keys())}"}
+        size = download(urls[0], dest, kind="video")     # ~14-day expiry: grab it now
+        return {"ok": True, "task": tid, "state": "success", "resumed": bool(task_id),
+                "seconds": round(time.time() - t0, 1), "bytes": size, "file": str(dest)}
+    except KieError as e:
+        print(f"  {label} failed: {e}", flush=True)
+        return {"ok": False, "task": tid, "state": "error", "error": str(e)[:300]}
 
 
 if __name__ == "__main__":

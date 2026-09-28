@@ -19,8 +19,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubus
 **Mac:**
 
 ```
-curl -fsSL https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.sh | bash
+bash -o pipefail -c "curl -fsSL https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.sh | bash"
 ```
+
+(`pipefail` makes a failed download fail the command; a bare `curl | bash` exits 0 with
+nothing installed when the download fails.)
 
 It puts the skill in `~/.claude/skills/str-secrets-content-studio`, finds Python (or
 installs one through uv, the way the STR Secrets Connections kit does), downloads ffmpeg

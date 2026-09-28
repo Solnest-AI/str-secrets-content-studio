@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.1 (2026-09-28)
+
+Money and silent-failure fixes from a Codex review of the whole skill (same code as the
+Solnest Cinematic Director 2.1.2).
+
+- One paid Veo task per clip, ever. A failed poll or download is retried against the same
+  task; a second task is only created when Claude asks for a redo with `--only`.
+- `clips/_run.json` is saved after every clip with its KIE task id, so an interrupted run
+  resumes: finished clips are kept, a created-but-unfinished task is polled again, and only
+  what is missing is generated. A clip is regenerated when its photo, prompt, length or
+  shape changed (fingerprint per clip); `assemble.py` refuses clips that no longer match
+  `plan.json`.
+- Every KIE download lands in a `.part` file and must be real media of the right size and
+  kind before it replaces anything (no more HTML error pages saved as clips or photos).
+- `credits()` and `extract_urls()` tolerate KIE's other answer shapes instead of crashing.
+- `assemble.py` no longer ships a shorter video when the closing shot failed; `--without-ending`
+  says so on purpose.
+- Listing pulls download into a staging folder and swap it in, so a rerun never keeps an
+  earlier listing's photos; `photos.py` clears numbered files the same way.
+- `listing_pull.py` accepts older Airbnb photo URLs (no `Hosting-<id>`) with a warning.
+- Docs: no literal `[--option]` brackets in commands, a PowerShell form for `"$UV" run`,
+  the Mac install line wrapped in `bash -o pipefail` so a failed download cannot exit 0,
+  and the video preflight only needs the video lines green.
+
 ## 1.0.0 (2026-09-28)
 
 The STR Secrets Summit 2.0 Content Studio, its own skill (`str-secrets-content-studio`),

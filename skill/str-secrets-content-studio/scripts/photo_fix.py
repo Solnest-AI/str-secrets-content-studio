@@ -84,8 +84,12 @@ def fix_one(src, dest, night):
             if d.get("state") in ("success", "fail"):
                 break
         rec["state"] = d.get("state") or "timeout"
+        rec["task"] = tid
         if rec["state"] == "success":
-            kie.download(kie.extract_urls(d)[0], dest)
+            urls = kie.extract_urls(d)
+            if not urls:
+                raise kie.KieError(f"success but no result URL, keys={list(d.keys())}")
+            kie.download(urls[0], dest, kind="image")     # checked to be a real image first
         else:
             rec["error"] = d.get("failMsg") or d.get("errorMessage") or "no result"
     except Exception as e:  # one photo failing must not stop the others
