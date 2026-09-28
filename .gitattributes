@@ -1,0 +1,7 @@
+# Keep shell scripts and Python LF on every checkout: a CRLF install.sh or bin/py fails
+# in bash with ": command not found". Windows reads LF fine.
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.ps1 text eol=lf

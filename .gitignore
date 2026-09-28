@@ -1,0 +1,13 @@
+.env
+*.env
+__pycache__/
+*.pyc
+.DS_Store
+listing-walkthroughs/
+*.mp4
+*.part
+skill/str-secrets-content-studio/bin/
+
+# Windows PowerShell cache written into the repo by accident once
+Microsoft/
+listing-carousels/
