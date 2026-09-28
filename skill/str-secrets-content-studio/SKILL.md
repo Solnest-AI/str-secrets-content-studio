@@ -250,7 +250,10 @@ Check it, then run it:
 The dry run validates the plan and shows the exact cost and balance without spending.
 The real run generates every beat in parallel (usually 2-3 minutes; give the tool call a
 10 minute timeout), then the closing shot. It writes `clips/_run.json` with the real
-credits spent.
+credits spent. When KIE fails a clip on its side ("Internal Error, Please try again later"),
+the script retries it by itself up to twice; those failures are not billed. If it still
+ends `NOT DONE`, run the same command again: finished clips are kept and only the missing
+ones are made.
 
 ## Step 6 - Check the clips before assembling
 

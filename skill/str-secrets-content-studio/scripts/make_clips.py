@@ -58,6 +58,30 @@ HOLD = (" Walls, ceilings, window frames, cabinetry, railings and furniture stay
 NAME_OK = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 MAX_WORKERS = 6            # KIE allows ~20 new requests per 10s; stay well under
 ENDING_NAME = "zz_ending"
+# KIE's own failures ("Internal Error, Please try again later", state "fail") are not billed:
+# 2026-09-28 on Windows, 14 of 20 Veo tasks failed that way and not one credit was taken.
+# So a clip KIE failed is retried here with a fresh task, up to this many extra times, before
+# the run gives up. Timeouts and download errors are never retried this way (that task may
+# have billed); they are resumed on the next run instead.
+KIE_FAIL_RETRIES = 2
+
+
+def generate(make_url, prompt, dest, *, label, task_id=None, retries=None, **kw):
+    """veo_clip with automatic retries of KIE-side failures only. make_url() uploads the
+    seed image when a fresh task is needed (a resumed task needs none)."""
+    retries = KIE_FAIL_RETRIES if retries is None else retries
+    url = None if task_id else make_url()
+    for attempt in range(retries + 1):
+        r = veo_clip(url, prompt, dest, label=label, task_id=task_id, **kw)
+        if r.get("ok") or r.get("state") != "fail" or attempt == retries:
+            if attempt:
+                r["kie_retries"] = attempt
+            return r
+        print(f"  {label}: KIE failed it on their side ({r.get('error')}); not billed, "
+              f"trying again ({attempt + 1} of {retries})", flush=True)
+        task_id = None
+        if url is None:
+            url = make_url()
 
 
 def load_plan(path):
@@ -260,8 +284,8 @@ def main(argv=None):
         prev = results.get(name) if isinstance(results.get(name), dict) else {}
         task_id = prev.get("task") if plan_for[name] == "resume" else None
         try:
-            url = None if task_id else upload(b["_image"], f"{name}{b['_image'].suffix}")
-            r = veo_clip(url, b["prompt"] + HOLD, clips_dir / f"{name}.mp4",
+            r = generate(lambda: upload(b["_image"], f"{name}{b['_image'].suffix}"),
+                         b["prompt"] + HOLD, clips_dir / f"{name}.mp4",
                          duration=duration, aspect=aspect, label=name, task_id=task_id)
             if r.get("ok"):
                 info = probe(clips_dir / f"{name}.mp4")
@@ -302,11 +326,10 @@ def main(argv=None):
             print("\n" + ("resuming" if task_id else "generating")
                   + " the closing shot from the final beat's real last frame...", flush=True)
             try:
-                url = None
-                if not task_id:
+                def seed_url():
                     seed = last_frame(last_clip, clips_dir / "_ending_seed.jpg")
-                    url = upload(seed, "ending_seed.jpg")
-                r = veo_clip(url, ending["prompt"] + HOLD, clips_dir / f"{ENDING_NAME}.mp4",
+                    return upload(seed, "ending_seed.jpg")
+                r = generate(seed_url, ending["prompt"] + HOLD, clips_dir / f"{ENDING_NAME}.mp4",
                              duration=ending.get("duration", 4), aspect=aspect,
                              label="ending", task_id=task_id)
             except (KieError, MediaError) as e:

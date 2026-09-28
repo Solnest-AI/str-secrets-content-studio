@@ -318,5 +318,49 @@ class DocsRunAsWritten(unittest.TestCase):
                     self.fail(f"{name}:{n} has a bracketed option in a command block: {line.strip()}")
 
 
+
+class KieSideFailuresRetryThemselves(unittest.TestCase):
+    def test_a_kie_failure_is_retried_with_a_fresh_task_until_it_works(self):
+        answers = [{"ok": False, "task": "T1", "state": "fail", "error": "Internal Error"},
+                   {"ok": False, "task": "T2", "state": "fail", "error": "Internal Error"},
+                   {"ok": True, "task": "T3", "state": "success"}]
+        calls = []
+
+        def fake_veo(url, prompt, dest, **kw):
+            calls.append((url, kw.get("task_id")))
+            return answers.pop(0)
+        with mock.patch.object(make_clips, "veo_clip", side_effect=fake_veo), redirect_stdout(io.StringIO()):
+            r = make_clips.generate(lambda: "http://img", "p", "d.mp4", label="x")
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["kie_retries"], 2)
+        self.assertEqual(calls, [("http://img", None)] * 3)
+
+    def test_it_gives_up_after_the_retries(self):
+        with mock.patch.object(make_clips, "veo_clip",
+                               return_value={"ok": False, "task": "T", "state": "fail", "error": "x"}) as v, \
+             redirect_stdout(io.StringIO()):
+            r = make_clips.generate(lambda: "u", "p", "d.mp4", label="x")
+        self.assertFalse(r["ok"])
+        self.assertEqual(v.call_count, 1 + make_clips.KIE_FAIL_RETRIES)
+
+    def test_a_timeout_or_download_error_is_never_retried_with_a_new_task(self):
+        with mock.patch.object(make_clips, "veo_clip",
+                               return_value={"ok": False, "task": "T", "state": "error", "error": "stuck"}) as v:
+            r = make_clips.generate(lambda: "u", "p", "d.mp4", label="x")
+        self.assertEqual(v.call_count, 1)
+        self.assertEqual(r["task"], "T")
+
+    def test_a_resumed_task_that_kie_failed_uploads_before_retrying(self):
+        answers = [{"ok": False, "task": "OLD", "state": "fail", "error": "x"}, {"ok": True, "task": "N"}]
+        calls = []
+
+        def fake_veo(url, prompt, dest, **kw):
+            calls.append((url, kw.get("task_id")))
+            return answers.pop(0)
+        with mock.patch.object(make_clips, "veo_clip", side_effect=fake_veo), redirect_stdout(io.StringIO()):
+            make_clips.generate(lambda: "http://img", "p", "d.mp4", label="x", task_id="OLD")
+        self.assertEqual(calls, [(None, "OLD"), ("http://img", None)])
+
+
 if __name__ == "__main__":
     unittest.main()
