@@ -289,9 +289,18 @@ def pull_url(url, outdir, render=render_page, minimum=MIN_PHOTOS):
         shutil.rmtree(staging, ignore_errors=True)
         out(f"ERROR: only {sum(got)} photos downloaded.\n{FOLDER_FIX}")
         return 2
+    # Windows will not delete a photo another program has open (a viewer, Explorer's
+    # preview pane): say so plainly instead of a traceback, and keep the new photos staged
     shutil.rmtree(src / "full", ignore_errors=True)
     shutil.rmtree(src / "thumbs", ignore_errors=True)
-    staging.rename(src / "full")
+    try:
+        if (src / "full").exists():
+            raise OSError("the old photos are still in use")
+        staging.rename(src / "full")
+    except OSError as e:
+        out(f"ERROR: could not replace {src / 'full'} ({e}). Close any program showing those "
+            "photos (a photo viewer, File Explorer's preview) and run this again.")
+        return 2
     make_thumbs_and_sheet(src)
     (src / "_urls.txt").write_text("\n".join(urls) + "\n", encoding="utf-8")
 
