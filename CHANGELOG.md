@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.3 (2026-09-28)
+
+- KIE's own failures retry themselves. A clip KIE fails on its side ("Internal Error,
+  Please try again later") is retried with a fresh task up to twice inside the same run;
+  those failures are not billed (measured 2026-09-28 on Windows: 14 of 20 Veo tasks failed
+  that way, 0 credits taken, the finished video cost exactly 7 x 65). Timeouts and download
+  errors are still resumed on the next run, never retried with a new task.
+
 ## 1.0.2 (2026-09-28)
 
 - A soft carousel cover is a note, not a stop. Typical Airbnb galleries score 37-53 against
