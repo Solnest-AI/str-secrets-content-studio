@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.2 (2026-09-28)
+
+- One content skill, not two. If an earlier copy of this skill is installed under another
+  folder name (the summit guide linked an earlier build for a day), setup now carries its
+  KIE key over and moves it from `~/.claude/skills` to `~/.claude/skills-retired`, so
+  Claude never has two skills answering "make a carousel for this listing". A copy is
+  recognized by its files, not its name; other skills are never touched. Nothing is deleted:
+  setup prints the one move that undoes it. A symlinked developer checkout is moved as the
+  link only. `STUDIO_KEEP_COPIES=1` leaves such a copy where it is.
+
 ## 1.0.1 (2026-09-28)
 
 Money and silent-failure fixes from a Codex review of the whole skill (same code as the

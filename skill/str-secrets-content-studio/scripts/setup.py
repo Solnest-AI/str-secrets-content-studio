@@ -10,6 +10,11 @@ Checks, and fixes without asking, everything the skill needs on THIS computer:
     else a blank .env is created and opened for the attendee to paste into. The key is
     never printed and never asked for in chat.
   * the KIE balance (455 credits is one 30 second video)
+  * an earlier copy of this same skill under another folder name (found by its files, not
+    its name): its KIE key is carried over, then the copy is moved out of ~/.claude/skills
+    into ~/.claude/skills-retired, so Claude has one content skill, not two that answer the
+    same request. Nothing is deleted; setup prints the one move that undoes it.
+    STUDIO_KEEP_COPIES=1 leaves such a copy where it is.
 
 Usage:
   <python> setup.py             check everything and fix what it can
@@ -28,6 +33,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -455,6 +461,66 @@ def ensure_key(open_editor=True):
                    f" after KIE_API_KEY= and save: {env_file}   (get one at https://kie.ai/api-key)")
 
 
+# The files that make a folder a copy of this skill, whatever it is called: the same scripts
+# ship in every earlier build of it. Another skill never carries all of them.
+COPY_FINGERPRINT = ("SKILL.md", "CAROUSEL.md", "scripts/make_clips.py", "scripts/assemble.py",
+                    "scripts/carousel.py", "scripts/listing_pull.py", "scripts/kie.py")
+
+
+def earlier_copies(skills_root):
+    """Folders in skills_root holding this skill under another name, never this one."""
+    out = []
+    try:
+        entries = sorted(pathlib.Path(skills_root).iterdir())
+    except OSError:
+        return out
+    for d in entries:
+        if d.name == SKILL_DIR.name:
+            continue
+        try:
+            if d.is_dir() and all((d / f).is_file() for f in COPY_FINGERPRINT):
+                if not (SKILL_DIR.exists() and d.resolve() == SKILL_DIR.resolve()):
+                    out.append(d)
+        except OSError:
+            continue
+    return out
+
+
+def retire_earlier_copies(skills_root=None, env_file=None, stamp=None):
+    """Move earlier copies of this skill out of Claude's skills folder.
+
+    Two copies make the same listing videos and carousels and answer the same requests, so
+    with both installed Claude could pick either (2026-09-28: the summit guide linked an
+    earlier build for a day before this skill had its own repo). Returns one dict per copy:
+    from, moved_to (Path or None), key_carried, was_link, error.
+
+    A copy's KIE key is copied first, only when this skill has none. A symlinked copy (a
+    developer's checkout) is moved as the link itself: the checkout is never touched.
+    Nothing is deleted."""
+    root = pathlib.Path(skills_root) if skills_root else pathlib.Path.home() / ".claude" / "skills"
+    env_file = pathlib.Path(env_file) if env_file else SKILL_DIR / ".env"
+    results = []
+    for old in earlier_copies(root):
+        result = {"from": old, "moved_to": None, "key_carried": False, "was_link": old.is_symlink(),
+                  "error": None}
+        key = kie._read_env_file(old / ".env").get("KIE_API_KEY", "")
+        if key and not kie._read_env_file(env_file).get("KIE_API_KEY", ""):
+            write_env(env_file, key)
+            result["key_carried"] = True
+        if os.environ.get("STUDIO_KEEP_COPIES"):
+            result["error"] = "left in place (STUDIO_KEEP_COPIES is set)"
+        else:
+            dest = root.parent / "skills-retired" / f"{old.name}-{stamp or time.strftime('%Y%m%d-%H%M%S')}"
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                os.rename(old, dest)          # renames a symlink itself, never its target
+                result["moved_to"] = dest
+            except OSError as e:
+                result["error"] = f"could not move it ({e.strerror or e})"
+        results.append(result)
+    return results
+
+
 def check_balance():
     try:
         return kie.credits(), None
@@ -496,6 +562,17 @@ def main(argv=None):
 
     sh, cmd = write_launchers()
     row(True, "launcher", f"{sh.as_posix()}  (Windows PowerShell: {cmd.name})")
+
+    for old in retire_earlier_copies():
+        name = old["from"].name
+        if old["moved_to"]:
+            row(True, "old copy", f"an earlier copy of this skill ({name}) moved to "
+                                  f"{old['moved_to'].as_posix()} so Claude uses one content skill"
+                                  + (" (its KIE key was carried over)" if old["key_carried"] else "")
+                                  + f". To undo, move that folder back to {old['from'].as_posix()}")
+        else:
+            row(False, "old copy", f"an earlier copy of this skill ({name}) is also installed and was "
+                                   f"{old['error']}. With both, Claude may use either one")
 
     no_open = a.no_open or bool(os.environ.get("STUDIO_SETUP_NO_OPEN"))
     ok, text = ensure_key(open_editor=not no_open)
