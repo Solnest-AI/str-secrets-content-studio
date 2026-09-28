@@ -44,6 +44,11 @@ survive between tool calls, so start every Bash call with:
 SKILL="$HOME/.claude/skills/str-secrets-content-studio"; SCRIPTS="$SKILL/scripts"; UV="$SKILL/bin/uv"
 ```
 
+On a Windows machine with no Git Bash, every `"$UV" run "$SCRIPTS/<name>.py" ...` below
+becomes, in PowerShell:
+`& "$env:USERPROFILE\.claude\skills\str-secrets-content-studio\bin\uv.cmd" run "$env:USERPROFILE\.claude\skills\str-secrets-content-studio\scripts\<name>.py" ...`
+(make folders with `New-Item -ItemType Directory -Force <path>`; everything else is the same).
+
 - **`bin/uv` missing:** the installer has not run here since carousels were added. Run the
   installer line from SKILL.md ("If `bin/py` does not exist") and carry on.
 - **The installer's `carousels` line was not ok:** run `"$UV" run "$SCRIPTS/doctor.py"`
@@ -313,7 +318,13 @@ after the host asks or says yes:
 
 ```bash
 "$UV" run "$SCRIPTS/photo_fix.py" source/full/16.jpg --out source/fixed --dry-run
-"$UV" run "$SCRIPTS/photo_fix.py" source/full/16.jpg --out source/fixed [--night 16]
+"$UV" run "$SCRIPTS/photo_fix.py" source/full/16.jpg --out source/fixed
+```
+
+For a dusk or night photo add `--night` with its number, so it is not brightened into daytime:
+
+```bash
+"$UV" run "$SCRIPTS/photo_fix.py" source/full/16.jpg --out source/fixed --night 16
 ```
 
 It costs 14 credits (about 7 cents) per photo. Show the host `source/fixed/_compare.jpg`

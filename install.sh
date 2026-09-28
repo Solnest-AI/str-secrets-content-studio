@@ -4,7 +4,7 @@
 # time to update or repair; it keeps your .env and the downloaded ffmpeg.
 #
 # Run it from Claude Code's Bash tool, or any terminal:
-#   curl -fsSL https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.sh | bash
+#   bash -o pipefail -c "curl -fsSL https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.sh | bash"
 #
 # What it does: copies the skill into ~/.claude/skills/, finds a Python 3.9+ (or installs
 # one through uv, the same way the STR Secrets Connections kit does), then hands over to

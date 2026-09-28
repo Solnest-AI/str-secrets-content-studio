@@ -21,9 +21,11 @@ never types a command. Never ask for an API key in the chat, and never print one
    - **Windows** (from Bash or PowerShell):
      `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.ps1 | iex"`
    - **Mac:**
-     `curl -fsSL https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.sh | bash`
+     `bash -o pipefail -c "curl -fsSL https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.sh | bash"`
 3. Show them the checklist it printed, then read it:
-   - **`[!!] KIE key`:** setup is not finished until the key is in. The installer created a
+   - **`[!!] KIE key`:** videos need it; carousels do not. If they only want a carousel
+     today, go on to step 4 and come back to the key before any video. Otherwise setup is
+     not finished until the key is in. The installer created a
      `.env` file and opened it. They get a key at https://kie.ai/api-key (sign in with
      Google, Create New Key), paste it after `KIE_API_KEY=`, save, and tell you "saved".
      Run step 2 again.

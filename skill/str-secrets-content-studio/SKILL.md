@@ -83,7 +83,8 @@ The same thing from PowerShell:
 (no admin, nothing added to PATH, no questions), then carry on:
 
 - Windows, from Bash or PowerShell: `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.ps1 | iex"`
-- Mac: `curl -fsSL https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.sh | bash`
+- Mac: `bash -o pipefail -c "curl -fsSL https://raw.githubusercontent.com/Solnest-AI/str-secrets-content-studio/main/install.sh | bash"`
+  (the `pipefail` wrapper makes a failed download fail the command instead of exiting 0 with nothing installed)
 
 **The KIE key.** Never ask for it in chat and never print it. If setup reports it
 missing, the attendee pastes it into `$SKILL/.env` after `KIE_API_KEY=` (setup opens
@@ -115,7 +116,9 @@ ask before spending anything.
 
 It checks Python, ffmpeg and ffprobe (downloading them into `$SKILL/bin/` when this
 machine has none), the KIE key and the KIE balance, and prints a checklist. Show the
-checklist to the user. Go on only when every line is `[ok]`:
+checklist to the user. Go on when the video lines are `[ok]`: Python, ffmpeg, ffprobe,
+launcher, KIE key and balance. A `[!!] carousels` line is about carousels only and never
+blocks a video. Otherwise:
 
 - `[!!] KIE key`: give the one-line fix above and stop.
 - `[!!] balance` under 455 credits (390 for a 5-beat video): tell them to top up at
@@ -270,7 +273,13 @@ closing shot is seeded from that beat's last frame.
 ## Step 7 - Assemble
 
 ```bash
-"$PY" "$SCRIPTS/assemble.py" clips --out final/walkthrough-9x16.mp4 [--music assets/bed.mp3]
+"$PY" "$SCRIPTS/assemble.py" clips --out final/walkthrough-9x16.mp4
+```
+
+With a licensed music track the host supplied, add `--music`:
+
+```bash
+"$PY" "$SCRIPTS/assemble.py" clips --out final/walkthrough-9x16.mp4 --music assets/bed.mp3
 ```
 
 Every beat but the last is trimmed to 4.6s, joined with 0.6s crossfades; the last beat

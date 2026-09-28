@@ -539,7 +539,8 @@ def main(argv=None):
         return 2
     if "key" in problems:
         print("ONE THING LEFT: the KIE key. Paste it into the .env file after KIE_API_KEY=, "
-              "save, then run this setup again. Never paste the key into the chat.")
+              "save, then run this setup again. Never paste the key into the chat."
+              + (" Carousels need no key and work already; only videos wait on it." if cok else ""))
         return 1
     if low_balance:
         print("READY, but the KIE balance is under one video. Top up before making a video"
