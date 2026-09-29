@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.4 (2026-09-29)
+
+Code review fixes in Ad Spy, each with a test:
+- One Firecrawl call failing (a timeout) no longer throws away the other phrases of a market
+  search; a bad key or an empty Firecrawl account still stops the run with a plain message.
+- The "national query" rule only applies to market searches, never to a host's own keyword.
+- `--get` with a typo or before any search gives a plain message instead of a traceback.
+- Market names with punctuation ("St. George") match their own ads.
+
 ## 1.1.3 (2026-09-29)
 
 - `--get` keeps one copy of identical creatives. A dynamic ad lists every size of the same

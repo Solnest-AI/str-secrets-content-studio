@@ -82,7 +82,10 @@ NOISE = ("pricelabs", "guesty", "hostaway", "airdna", "hospitable", "lodgify", "
 
 
 class SpyError(RuntimeError):
-    pass
+    """fatal=True stops the whole run (bad key, no credits); otherwise one phrase failed."""
+    def __init__(self, msg, fatal=False):
+        super().__init__(msg)
+        self.fatal = fatal
 
 
 def firecrawl_key():
@@ -129,9 +132,9 @@ def scrape(url, key, tries=2):
         except urllib.error.HTTPError as e:
             msg = e.read()[:200].decode("utf-8", "replace")
             if e.code in (401, 403):
-                raise SpyError(f"Firecrawl rejected the key (HTTP {e.code}). Check FIRECRAWL_API_KEY.")
+                raise SpyError(f"Firecrawl rejected the key (HTTP {e.code}). Check FIRECRAWL_API_KEY.", fatal=True)
             if e.code == 402:
-                raise SpyError("The Firecrawl account is out of credits (HTTP 402).")
+                raise SpyError("The Firecrawl account is out of credits (HTTP 402).", fatal=True)
             last = SpyError(f"Firecrawl HTTP {e.code}: {msg}")
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
             last = SpyError(f"could not reach Firecrawl ({e})")
@@ -240,7 +243,7 @@ def collapse(ads):
 
 def tag(ads, market=None):
     """noise = software, courses, lenders (not competitors); local = names the market."""
-    words = [w for w in (market or "").lower().replace(",", " ").split() if len(w) > 2]
+    words = re.findall(r"[a-z]{3,}", (market or "").lower())     # "St. George" -> ["george"]
     for a in ads:
         text = " ".join([a.get("page_name") or "", a.get("title") or "", a.get("body") or "",
                          a.get("link") or ""]).lower()
@@ -280,7 +283,10 @@ def download(url, dest):
 
 
 def get_creatives(out, picks):
-    ads = json.loads((out / "ads.json").read_text(encoding="utf-8"))["ads"]
+    try:
+        ads = json.loads((out / "ads.json").read_text(encoding="utf-8"))["ads"]
+    except (OSError, ValueError, KeyError):
+        raise SpyError(f"no search results in {out} yet: run a search with --out {out} first")
     dest = out / "creatives"
     dest.mkdir(parents=True, exist_ok=True)
     jobs = []
@@ -356,7 +362,10 @@ def main(argv=None):
     out = pathlib.Path(a.out)
     try:
         if a.get:
-            picks = [int(x) for x in a.get.split(",") if x.strip()]
+            try:
+                picks = [int(x) for x in a.get.split(",") if x.strip()]
+            except ValueError:
+                raise SpyError(f"--get takes shortlist numbers like 1,4,7 (got {a.get!r})")
             return get_creatives(out, picks)
         if not (a.market or a.query or a.page):
             ap.error("give --market, --query or --page (or --get after a search)")
@@ -374,18 +383,29 @@ def main(argv=None):
             # Sometimes the page comes back before Meta has loaded its results (measured
             # 2026-09-28: 1 empty page, then 3 full ones for the same search). No result data at
             # all means "not loaded", so scrape again; a real zero says count 0.
-            for attempt in range(3):
-                html, _ = scrape(url, key)
-                found = parse_ads(html)
-                if found or total_count(html) == 0:
-                    break
-            return q, found, total_count(html)
+            try:
+                for attempt in range(3):
+                    html, _ = scrape(url, key)
+                    found = parse_ads(html)
+                    if found or total_count(html) == 0:
+                        break
+            except SpyError as e:
+                if e.fatal:
+                    raise
+                return q, [], None, str(e)     # one phrase failing never loses the others
+            return q, found, total_count(html), None
+
+        errors = []
 
         def run(phrases):
             with cf.ThreadPoolExecutor(3) as ex:
-                for q, found, count in ex.map(search, phrases):
+                for q, found, count, err in ex.map(search, phrases):
                     label = q or "page " + a.page
-                    if count and count > NATIONAL and not a.page:
+                    if err:
+                        errors.append(err)
+                        print(f"  {label}: failed ({err}); the other phrases still count", flush=True)
+                        continue
+                    if a.market and count and count > NATIONAL:
                         print(f"  {label}: {count} results = a national query, ignored", flush=True)
                         continue
                     print(f"  {label}: {len(found)} ads" + (f" (Meta counts {count})" if count is not None else ""),
@@ -401,6 +421,8 @@ def main(argv=None):
             run([t.format(m=a.market) for t in GUEST_LADDER[a.kind]])
         uniq = {x["id"]: x for x in ads}
         ads = rank(tag(collapse(list(uniq.values())), a.market))
+        if not ads and errors:
+            raise SpyError(f"every search failed ({errors[0]}). Check the internet connection and try again.")
         if not ads:
             print("ERROR: no ads found. Try a wider term (\"airbnb management\", \"vacation rental\"), "
                   "the whole state, or --media all. Meta's page may also have changed: then use the Meta "

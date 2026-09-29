@@ -160,6 +160,51 @@ class SearchFlow(unittest.TestCase):
         self.assertEqual([a["id"] for a in data["ads"]], ["1"])
         self.assertEqual(data["found_with"], ["Nashville airbnb management"])
 
+    def test_one_failed_phrase_keeps_the_others_and_a_bad_key_stops_everything(self):
+        good = _page([_ad("1", "GoodNight", "Nashville airbnb owners, keep your calendar full")], count=3)
+
+        def flaky(url, key, tries=2):
+            if "short+term" in url:
+                raise ad_spy.SpyError("could not reach Firecrawl (timed out)")
+            return good, ""
+        ladder = {"city": ["{m} short term rental management", "{m} airbnb management"]}
+        with tempfile.TemporaryDirectory() as t, \
+                mock.patch.object(ad_spy, "firecrawl_key", return_value=("k", "test")), \
+                mock.patch.object(ad_spy, "scrape", side_effect=flaky), \
+                mock.patch.object(ad_spy, "LADDERS", ladder), redirect_stdout(io.StringIO()) as buf:
+            rc = ad_spy.main(["--market", "Nashville", "--out", t])
+        self.assertEqual(rc, 0)
+        self.assertIn("failed (could not reach Firecrawl", buf.getvalue())
+
+        def dead(url, key, tries=2):
+            raise ad_spy.SpyError("Firecrawl rejected the key (HTTP 401).", fatal=True)
+        with tempfile.TemporaryDirectory() as t, \
+                mock.patch.object(ad_spy, "firecrawl_key", return_value=("k", "test")), \
+                mock.patch.object(ad_spy, "scrape", side_effect=dead), \
+                mock.patch.object(ad_spy, "LADDERS", ladder), redirect_stdout(io.StringIO()) as buf:
+            rc = ad_spy.main(["--market", "Nashville", "--out", t])
+        self.assertEqual(rc, 2)
+        self.assertIn("rejected the key", buf.getvalue())
+
+    def test_a_keyword_search_is_never_dropped_as_national(self):
+        big = _page([_ad("1", "Host", "Airbnb co-host services")], count=9000)
+        with tempfile.TemporaryDirectory() as t, \
+                mock.patch.object(ad_spy, "firecrawl_key", return_value=("k", "test")), \
+                mock.patch.object(ad_spy, "scrape", return_value=(big, "")), redirect_stdout(io.StringIO()):
+            rc = ad_spy.main(["--query", "airbnb co-host", "--out", t])
+        self.assertEqual(rc, 0)
+
+    def test_bad_get_input_is_a_plain_message(self):
+        with tempfile.TemporaryDirectory() as t, redirect_stdout(io.StringIO()) as buf:
+            self.assertEqual(ad_spy.main(["--out", t, "--get", "1,x"]), 2)
+            self.assertIn("shortlist numbers", buf.getvalue())
+            self.assertEqual(ad_spy.main(["--out", t, "--get", "1"]), 2)
+            self.assertIn("run a search", buf.getvalue())
+
+    def test_market_names_with_punctuation_still_match(self):
+        ads = ad_spy.tag([{"page_name": "X", "title": "", "body": "St. George airbnb owners", "link": ""}], "St. George")
+        self.assertTrue(ads[0]["local"])
+
     def test_no_key_is_a_plain_message_with_the_fallback(self):
         with tempfile.TemporaryDirectory() as t, \
                 mock.patch.dict("os.environ", {}, clear=True), \
