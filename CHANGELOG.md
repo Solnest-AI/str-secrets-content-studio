@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.2 (2026-09-29)
+
+- Ad Spy's competitor judgment is back where str-ad-spy had it: Claude reads every ad's copy
+  and drops software, coaches, cleaners, photographers, lenders, other-city ads and anything
+  off-topic, then labels each owner-facing or guest-facing, before ranking by copies. The
+  script's keyword marks are only a first pass. New in the drop list: developers and realtors
+  selling units, which ranked first on copy count in Miami and Nashville.
+
 ## 1.1.1 (2026-09-28)
 
 From a live test on Miami, Scottsdale and Gatlinburg, then one real clone:
