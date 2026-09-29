@@ -42,6 +42,8 @@ never types a command. Never ask for an API key in the chat, and never print one
    skill had been called:
    - **Carousel:** `~/.claude/skills/str-secrets-content-studio/CAROUSEL.md`
    - **Video:** `~/.claude/skills/str-secrets-content-studio/SKILL.md`
+   - **Ad research** (they ask to spy on ads, see what competitors run, clone an ad):
+     `~/.claude/skills/str-secrets-content-studio/ADS.md`
 
    (Windows: the same files under `%USERPROFILE%\.claude\skills\str-secrets-content-studio\`.)
    A video with the balance under 455 credits: ask them to top up first, and offer the
@@ -97,6 +99,20 @@ thing that sets you apart, amenities, details, bedrooms, a real 5-star guest quo
 location, your closing line), checks every word and number against your listing before it
 renders anything, and shows you a preview and the caption. Your photos are never AI-edited
 unless you ask. Free: nothing is generated.
+
+### Ad Spy
+
+```
+what ads are STR managers running in Nashville?
+```
+
+It searches Meta's Ad Library for your market (every phrasing managers actually use),
+shows the ads with the most money behind them first, with their full copy, and breaks the
+ones you pick down into a framework you can reuse: the hook, the angle, the offer, and a
+fill-in-the-blank formula. Then, if you want, it rebuilds a static ad or a carousel in your
+own brand with your own listing photos, or writes you new ad ideas from what works. It never
+copies a competitor's claims, numbers or photos. A search costs 1 Firecrawl credit per
+phrase (the key comes from the Connections kit); a cloned image about 3 cents in KIE credits.
 
 ## The recipe, and why
 

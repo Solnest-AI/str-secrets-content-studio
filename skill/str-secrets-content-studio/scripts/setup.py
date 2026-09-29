@@ -601,6 +601,16 @@ def main(argv=None):
     cok, ctext = ensure_carousel(a.offline)
     row(cok, "carousels", ctext)
 
+    # Ad Spy searches Meta's Ad Library through Firecrawl; the key comes from the Connections
+    # kit. Missing it never blocks videos or carousels, so it is a note, not a problem.
+    try:
+        import ad_spy
+        _, fc_where = ad_spy.firecrawl_key()
+        row(True, "ad spy", f"Firecrawl key found in {fc_where}")
+    except Exception:
+        row(False, "ad spy", "no FIRECRAWL_API_KEY yet: ad research needs it (the Connections kit "
+                             "sets it up). Videos and carousels are not affected")
+
     print("\n".join(rows))
     print()
     if not cok:

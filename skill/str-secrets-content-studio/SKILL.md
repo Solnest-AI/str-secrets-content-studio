@@ -11,7 +11,12 @@ description: >-
   a video", "cinematic walkthrough", an Instagram carousel, "make a carousel for
   this listing", carousel slides or a carousel post for a property, a 9:16 reel or a 16:9
   website video, or pastes a listing link or a photo folder and asks for social or
-  marketing content. Carousels follow CAROUSEL.md in this folder; videos follow this file.
+  marketing content. Also Ad Spy: find the Facebook and Instagram ads STR managers and
+  competitors are running in a market ("what ads are running in Nashville", "spy on my
+  competitors' ads", "what is X advertising"), rank them by spend signal, break the best
+  down into a reusable framework (hook, angle, offer, formula), and clone a static ad or a
+  carousel for the host's own brand or turn it into new ad ideas. Carousels follow
+  CAROUSEL.md, ads follow ADS.md, videos follow this file.
 allowed-tools: [Read, Write, Bash, PowerShell, Glob, Grep, AskUserQuestion, mcp__firecrawl__firecrawl_scrape, mcp__firecrawl__firecrawl_extract]
 ---
 
@@ -24,12 +29,14 @@ Everything here was measured on real listings (Sun Peaks cabin, Langley 66-acre 
 2026-09-20/21) before it became a rule. Follow the rules even when another approach
 looks clever. The clever approaches are the ones that failed.
 
-## Two modes: video or carousel
+## Three modes: video, carousel, or ads
 
 - **Video** (a reel, walkthrough, Veo clip): follow this file.
 - **Carousel** (Instagram slides, a carousel post): read `CAROUSEL.md` in this skill's
   folder and follow it instead. It needs no API key and costs nothing.
-- Both, or unclear: ask once, "A video, a carousel, or both?"
+- **Ads** (spy on competitors' ads, break them down, clone a static ad or carousel, ad
+  ideas): read `ADS.md` in this skill's folder and follow it instead.
+- Unclear: ask once, "A video, a carousel, or ad research?"
 
 ## The framework in one breath
 
