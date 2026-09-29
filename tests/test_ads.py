@@ -119,6 +119,20 @@ class Rank(unittest.TestCase):
         self.assertIn("view_all_page_id=123", p)
 
 
+class Downloads(unittest.TestCase):
+    def test_identical_creatives_are_kept_once(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = pathlib.Path(t)
+            files = []
+            for i, data in enumerate([b"A" * 3000, b"A" * 3000, b"B" * 3000, b"A" * 3000], 1):
+                p = d / f"01_x_{i}.jpg"
+                p.write_bytes(data)
+                files.append(p)
+            gone = ad_spy.drop_duplicates(files)
+            self.assertEqual(sorted(x.name for x in gone), ["01_x_2.jpg", "01_x_4.jpg"])
+            self.assertEqual(sorted(x.name for x in d.iterdir()), ["01_x_1.jpg", "01_x_3.jpg"])
+
+
 class SearchFlow(unittest.TestCase):
     def test_a_national_query_is_ignored_and_an_empty_page_is_scraped_again(self):
         good = _page([_ad("1", "GoodNight", "Nashville airbnb owners, keep your calendar full")], count=3)

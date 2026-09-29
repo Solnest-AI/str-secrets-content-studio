@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.3 (2026-09-29)
+
+- `--get` keeps one copy of identical creatives. A dynamic ad lists every size of the same
+  picture (Austin: 16 images, 14 byte-identical); now 3 files to look at instead of 16.
+  Found in a three-market run (Austin, Myrtle Beach, Breckenridge).
+
 ## 1.1.2 (2026-09-29)
 
 - Ad Spy's competitor judgment is back where str-ad-spy had it: Claude reads every ad's copy

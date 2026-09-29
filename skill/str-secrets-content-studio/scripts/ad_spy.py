@@ -305,17 +305,38 @@ def get_creatives(out, picks):
             return d, download(u, d), None
         except (SpyError, urllib.error.URLError, TimeoutError, OSError) as e:
             return d, 0, str(e)
-    ok = 0
+    ok, saved = 0, []
     with cf.ThreadPoolExecutor(6) as ex:
         for d, size, err in ex.map(one, jobs):
             if err:
                 print(f"  FAIL  {d.name}: {err}")
             else:
                 ok += 1
-                print(f"  OK    {d}  ({size / 1e6:.1f} MB)")
-    print(f"{ok}/{len(jobs)} files in {dest} (each ad's copy is in its .txt). "
+                saved.append(d)
+    # A dynamic ad lists every size and placement of the same picture (Austin, 2026-09-29:
+    # 16 images, 14 byte-identical). Keep one of each so there is less to look at.
+    dupes = drop_duplicates(saved)
+    for d in saved:
+        if d not in dupes:
+            print(f"  OK    {d}  ({d.stat().st_size / 1e6:.1f} MB)")
+    note = f", {len(dupes)} identical copies removed" if dupes else ""
+    print(f"{ok - len(dupes)} files in {dest}{note} (each ad's copy is in its .txt). "
           "Facebook's media links expire in a few days: download what you need now.")
     return 0 if ok else 1
+
+
+def drop_duplicates(paths):
+    """Delete files whose bytes match an earlier one. Returns the deleted paths."""
+    import hashlib
+    seen, gone = set(), []
+    for p in sorted(paths):
+        h = hashlib.sha1(p.read_bytes()).hexdigest()
+        if h in seen:
+            p.unlink()
+            gone.append(p)
+        else:
+            seen.add(h)
+    return gone
 
 
 def main(argv=None):
