@@ -49,6 +49,22 @@ class Parse(unittest.TestCase):
         self.assertTrue(ads[0]["start_date"].startswith("2026-"))
         self.assertIn("ads/library/?id=1", ads[0]["snapshot_url"])
 
+    def test_dynamic_ads_use_their_card_text_not_the_placeholder(self):
+        a = _ad("5", "Casiola", "{{product.brand}}", title="{{product.name}}")
+        a["snapshot"]["cards"] = [{"body": "Tired of stressing about your vacation rental?", "title": "Earn more"}]
+        b = _ad("6", "Plunj", "{{product.brand}}", title="{{product.name}}")
+        ads = ad_spy.parse_ads(_page([a, b]))
+        self.assertEqual(ads[0]["body"], "Tired of stressing about your vacation rental?")
+        self.assertEqual(ads[0]["title"], "Earn more")
+        self.assertTrue(ads[0]["dynamic"])
+        self.assertEqual((ads[1]["body"], ads[1]["title"]), ("", None))   # no card text: shown as dynamic
+
+    def test_spanish_and_listing_quality_ads_count_as_competitors(self):
+        ads = ad_spy.parse_ads(_page([
+            _ad("1", "Marba", "Administramos tu propiedad solo en Miami, gestionamos cada propiedad."),
+            _ad("2", "Casago", "Your listing is the only thing a guest sees before they decide.")]))
+        self.assertEqual([a["noise"] for a in ad_spy.tag(ads, "Miami")], [False, False])
+
     def test_the_same_ad_twice_on_the_page_is_one_ad(self):
         a = _ad("7", "X", "hello")
         html = _page([a]) + _page([a])

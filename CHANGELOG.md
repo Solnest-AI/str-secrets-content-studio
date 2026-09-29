@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1 (2026-09-28)
+
+From a live test on Miami, Scottsdale and Gatlinburg, then one real clone:
+- Dynamic ads (Meta fills `{{product.brand}}` per viewer) now show their real card copy, or
+  say they are dynamic, instead of the placeholder.
+- Spanish-language managers ("Administramos tu propiedad...") and listing-quality ads
+  ("Your listing is the only thing a guest sees...") count as competitors.
+- Verified end to end: a Cabins For You "Revenue Reset" ad from the Gatlinburg search
+  cloned for another brand, text letter-perfect first try, 6 credits.
+
 ## 1.1.0 (2026-09-28)
 
 Ad Spy joins the Content Studio (ADS.md): find the Facebook and Instagram ads STR operators
