@@ -63,7 +63,19 @@ NATIONAL = 500     # more results than this = the phrase was too common and igno
 STR_TALK = re.compile(r"airbnb|vrbo|short[- ]term|vacation[- ]rental|\bstrs?\b|rental propert|rental income|"
                       r"property manag|rental manag|hospitality manag|cabin rental|co-?host(ing)? (your|for)|"
                       r"book direct|nightly|occupancy|revpar|\badr\b|superhost|guest service|5-star|"
-                      r"should be earning|comparable properties|home could pay", re.I)
+                      r"should be earning|comparable properties|home could pay|your listing|\ba guest\b|"
+                      r"vacation home|propertymgmt|property-management|"
+                      r"administramos tu propiedad|gestionamos cada propiedad|alquiler(es)? vacacional|"
+                      r"renta(s)? (corta|vacacional)", re.I)
+TEMPLATE = re.compile(r"\{\{[^}]*\}\}")    # dynamic ads: Meta fills these per viewer
+
+
+def real_text(*candidates):
+    """The first candidate that is real copy, not a dynamic-ad placeholder like {{product.brand}}."""
+    for c in candidates:
+        if isinstance(c, str) and c.strip() and not TEMPLATE.fullmatch(c.strip()):
+            return TEMPLATE.sub("", c).strip()
+    return ""
 NOISE = ("pricelabs", "guesty", "hostaway", "airdna", "hospitable", "lodgify", "ownerrez", "wheelhouse",
          "arbitrage", "free training", "masterclass", "bootcamp", "mastermind", "course", "webinar",
          "cost segregation", "dscr", "mortgage", "lender")
@@ -165,8 +177,9 @@ def parse_ads(html):
             seen.add(aid)
             s = ad.get("snapshot") or {}
             cards = [c for c in (s.get("cards") or []) if isinstance(c, dict)]
-            body = ((s.get("body") or {}).get("text") if isinstance(s.get("body"), dict) else None) or \
-                   next((c.get("body") for c in cards if c.get("body")), "") or ""
+            body = real_text((s.get("body") or {}).get("text") if isinstance(s.get("body"), dict) else None,
+                             *[c.get("body") for c in cards])
+            dynamic = "{{" in json.dumps(s.get("body")) or "{{" in str(s.get("title"))
             images = [i.get("original_image_url") or i.get("resized_image_url") for i in (s.get("images") or [])
                       if isinstance(i, dict)]
             images += [c.get("original_image_url") or c.get("resized_image_url") for c in cards]
@@ -189,8 +202,9 @@ def parse_ads(html):
                 "days_running": days,
                 "format": "video" if any(videos) else (s.get("display_format") or "image").lower(),
                 "platforms": ad.get("publisher_platform") or [],
-                "title": s.get("title") or next((c.get("title") for c in cards if c.get("title")), None),
-                "body": body.strip(),
+                "title": real_text(s.get("title"), *[c.get("title") for c in cards]) or None,
+                "body": body,
+                "dynamic": dynamic,
                 "cta": s.get("cta_text") or next((c.get("cta_text") for c in cards if c.get("cta_text")), None),
                 "link": s.get("link_url") or next((c.get("link_url") for c in cards if c.get("link_url")), None),
                 "images": [u for u in dict.fromkeys(images) if u],
@@ -252,7 +266,7 @@ def show(ads, limit):
         run = f"{a['days_running']}d" if a.get("days_running") is not None else "?"
         mark = "  (not a competitor)" if a.get("noise") else ("" if a.get("local", True) else "  (other market?)")
         print(f"{n:2d}. {one_line(a['page_name'], 34):<34} {a['format']:<8} x{a['copies']:<3} {run:>5}  "
-              f"{one_line(a['body'] or a.get('title') or '', 90)}{mark}")
+              f"{one_line(a['body'] or a.get('title') or ('(dynamic ad: the text changes per viewer, open ' + a['snapshot_url'] + ')' if a.get('dynamic') else ''), 90)}{mark}")
 
 
 def download(url, dest):
