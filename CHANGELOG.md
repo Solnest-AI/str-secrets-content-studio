@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.1.0 (2026-09-28)
+
+Ad Spy joins the Content Studio (ADS.md): find the Facebook and Instagram ads STR operators
+run in a market, break the best ones down, and clone a static ad or a carousel for your brand.
+
+- `ad_spy.py` reads Meta's public Ad Library page through Firecrawl (the Connections kit's
+  key). Tested side by side on Nashville against Meta's own Ad Library search: same
+  advertisers, but only the page gives each ad's full copy, call to action, link, images and
+  video files, start date and how many copies are running. A market search runs the phrase
+  ladder from the str-ad-spy research (33 ads from 21 advertisers in Nashville vs 14 from
+  Meta's search), ignores national queries, collapses duplicate creatives into a copy count,
+  and marks software, courses and off-topic ads as not competitors. `--get` downloads the
+  picks with their copy. Meta's own search stays as the fallback without a Firecrawl key.
+- ADS.md: the framework for each pick (hook, angle, offer, audience, format, proof, a
+  fill-in-the-blank formula, what to steal), then clone or new ideas.
+- `ad_make.py` clones a static ad or a carousel card with GPT Image 2 on KIE (about 3 cents
+  an image): the competitor's ad as the layout blueprint, the host's real listing photo as
+  the hero, the host's own words. Never their claims, photos or logo. Dry run, balance check,
+  one task per image, KIE-side failures retried unbilled, finished images kept on a rerun.
+  Images only: no video ads, no generated people.
+- Setup shows an `ad spy` line (Firecrawl key found or not); it never blocks videos or carousels.
+
 ## 1.0.4 (2026-09-28)
 
 - A listing re-pull on Windows while a photo from the old pull is open (a viewer, File
