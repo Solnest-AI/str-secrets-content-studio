@@ -55,11 +55,10 @@ phrase with more than 500 results (a national query that ignored the market), an
 owner-facing phrase is empty it tries what operators there say to guests. `--page` lists
 everything one advertiser runs (their page id is in `ads.json`). `--media video|image` narrows it.
 
-It prints a numbered shortlist, strongest first, and saves everything to `ads.json`:
-`xN` is how many copies of that creative are running (Meta publishes no spend; several
-copies of one ad means money behind it), `d` is days running, `(not a competitor)` marks
-software, courses, lenders and off-topic ads, `(other market?)` marks ads that never name
-the market.
+It prints a numbered list, most copies first, and saves everything to `ads.json`: `xN` is
+how many copies of that creative are running, `d` is days running. Its `(not a competitor)`
+and `(other market?)` marks are a keyword first pass and nothing more: **you** decide who is
+a competitor in Step 2, by reading each ad's copy in `ads.json`.
 
 - **Never search `<market> property management`.** It matched 9,089 ads nationally and
   none in the market.
@@ -73,13 +72,46 @@ the market.
   advertisers and headlines only (no ad text or images), so the teardown needs the host to
   open each `ad_snapshot_url` and paste the text back.
 
-## Step 2 - Shortlist
+## Step 2 - Drop the ads that are not competitors (you read every ad)
 
-Show the host the list the script printed (strip the `(not a competitor)` rows unless they
-ask). Name the owner-facing ads versus the guest-facing ones. Then ask one question: **which
-one to three do you want broken down?** Nothing is downloaded or analysed before they pick.
+Read `ads.json`: every ad's full copy is there. Keyword results always contain noise, and the
+script's marks miss some and over-mark others, so judge each ad from its copy yourself.
+Remove:
 
-## Step 3 - Break it down (the framework)
+- **Software and tools:** PriceLabs, Guesty, Hostaway, AirDNA, Hospitable, Lodgify, OwnerRez
+- **Coaches and courses:** anything about rental arbitrage, "free Airbnb training", how to
+  buy your first STR, bootcamps, masterminds
+- **Cleaners, photographers, lenders, cost-segregation firms**
+- **Developers and realtors selling property:** condo towers, "STR-ready units",
+  pre-construction, "invest in", "real estate asset", homes for sale. They mention rental
+  income, but they sell buildings, not management (Domus FLATS in Miami and Alpha
+  Residential in Nashville ranked first on copy count, 2026-09-28).
+- **Ads about a different city.** National brands like SkyRun, iTrip and Grand Welcome run
+  one Facebook page for every market, so a Breckenridge ad can surface in a Nashville
+  search. If the copy names another city, it is not your competitor. A regional name
+  ("Smoky Mountain" for Gatlinburg, "South Florida" for Miami) still counts as the market.
+- **Anything off-topic** the phrase happened to match (a concert "co-hosted" by someone,
+  a health testimonial).
+
+Label each ad that is left **owner-facing** (a manager chasing owners: the real
+competition) or **guest-facing** (an operator chasing bookings). What is left is the
+competitor set.
+
+## Step 3 - Rank and shortlist
+
+One ad is a test. Six copies of the same ad is real money, because it is working. Meta
+publishes no spend or reach for ordinary ads, so copy count is the only budget signal.
+Show the competitor set as a table, owner-facing first, each group sorted by copies:
+
+| # | Advertiser | Owner or guest | Hook (their first line, verbatim) | Copies | Running since |
+|---|---|---|---|---|---|
+
+Keep the script's numbers in the `#` column (they are what `--get` downloads). Use their
+exact words; never invent a hook. Say in one line what you removed and why ("dropped 9:
+PriceLabs, 2 condo developers, 6 off-topic"). Then stop and ask one question: **which one
+to three do you want broken down?** Nothing is downloaded or analysed before they pick.
+
+## Step 4 - Break it down (the framework)
 
 Download the picks, then LOOK at each creative (Read the image; for a video, look at the
 poster and pull frames):
@@ -110,7 +142,7 @@ For each pick, report exactly this, using their words verbatim:
   without [the thing they hate]. [Proof]. [Free offer]."
 - **What to steal:** two or three specific things to use this week, never "use social proof".
 
-## Step 4 - Clone (optional, one pick at a time)
+## Step 5 - Clone (optional, one pick at a time)
 
 Ask first: **clone it as a static post, a carousel, or turn the formula into new ideas?**
 
@@ -170,7 +202,7 @@ Then:
 hook, the angle, the visual (which of their photos, what layout), the body copy in their
 voice, and the call to action. Only real facts from the host.
 
-## Step 5 - Deliver
+## Step 6 - Deliver
 
 Report the shortlist, the breakdowns, and any finished images with their paths. To post, the
 host uploads the image (or the cards in order) and writes the caption; launching the ad is

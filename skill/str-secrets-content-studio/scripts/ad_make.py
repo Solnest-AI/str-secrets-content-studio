@@ -87,7 +87,7 @@ def run_task(out, state, key, body, dest):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--spec", required=True, help="text file with the full ad spec (see ADS.md step 4)")
+    ap.add_argument("--spec", required=True, help="text file with the full ad spec (see ADS.md step 5)")
     ap.add_argument("--ref", action="append", default=[],
                     help="reference image (repeatable, order matters): the blueprint ad, then the hero photo")
     ap.add_argument("--aspect", default="1:1", choices=ASPECTS)
@@ -102,7 +102,7 @@ def main(argv=None):
     try:
         spec = pathlib.Path(a.spec).read_text(encoding="utf-8").strip()
         if len(spec) < 80:
-            raise AdError("the spec is too short: describe every text zone, the layout and the hero (ADS.md step 4)")
+            raise AdError("the spec is too short: describe every text zone, the layout and the hero (ADS.md step 5)")
         refs = [pathlib.Path(r) for r in a.ref]
         missing = [str(r) for r in refs if not r.is_file()]
         if missing:
