@@ -58,6 +58,8 @@ fi
 mkdir -p "$DEST"
 rm -rf "$DEST/scripts"
 cp -R "$SRC/." "$DEST/"
+# VERSION sits at the top of the repo; the auto-updater reads it from the skill folder.
+[ -f "$SRC/../../VERSION" ] && cp "$SRC/../../VERSION" "$DEST/VERSION"
 echo "  skill installed at $DEST"
 
 # 2. A Python that works here (3.9 or newer). On a Mac without the Xcode command line

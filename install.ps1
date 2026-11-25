@@ -49,6 +49,9 @@ if (-not $Src) {
 New-Item -ItemType Directory -Force -Path $Dest | Out-Null
 if (Test-Path (Join-Path $Dest 'scripts')) { Remove-Item -Recurse -Force (Join-Path $Dest 'scripts') }
 Copy-Item -Path (Join-Path $Src '*') -Destination $Dest -Recurse -Force
+# VERSION sits at the top of the repo; the auto-updater reads it from the skill folder.
+$Ver = Join-Path $Src '..\..\VERSION'
+if (Test-Path $Ver) { Copy-Item -Path $Ver -Destination (Join-Path $Dest 'VERSION') -Force }
 Write-Host "  skill installed at $Dest"
 
 # 2. A Python that works here (3.9 or newer).

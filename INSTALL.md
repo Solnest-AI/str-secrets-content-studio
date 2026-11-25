@@ -38,8 +38,8 @@ Show the attendee the checklist it printed.
 
 ## 2. Read the checklist
 
-- Every line `[ok]` (the `balance` line may say `[!!]`): done. Carry on with steps 4 and 5
-  of the README's "set this up" section: the green check line, then offer to make their first
+- Every line `[ok]` (the `balance` line may say `[!!]`): done. Carry on with steps 4 to 6
+  of the README's "set this up" section: automatic updates, the green check line, then offer to make their first
   carousel or video right here, from their Airbnb link. No restart needed.
 - `[!!] KIE key`: the installer created the `.env` file and opened it for them. They get
   a key at https://kie.ai/api-key (sign in with Google, Create New Key, no IP whitelist),
@@ -57,5 +57,25 @@ Show the attendee the checklist it printed.
 
 ## 3. Update or repair later
 
-Run the step 1 line again. It replaces the skill's scripts with the latest version and
-keeps the `.env` and the downloaded ffmpeg.
+Updates install themselves: once a day, in the background when Claude Code starts, the
+newest published release is installed and setup runs again. The `.env`, the downloaded
+ffmpeg (`bin/`) and any file the user added are never touched, and if a new release fails
+setup the old version is put back by itself. Changes the user asked for live in
+`~/.solnest/content-studio/my-instructions.md`, outside this folder, so they survive every update.
+
+Only when the user asks to update now:
+
+```bash
+SKILL="$HOME/.claude/skills/str-secrets-content-studio"; "$SKILL/bin/py" "$SKILL/scripts/update.py" && "$SKILL/bin/py" "$SKILL/scripts/setup.py" --no-open
+```
+
+Then run the automatic-updates line (README "set this up" step 4) once more, so a newer
+auto-updater is picked up. `scripts/update.py --undo` goes back one version. If
+`scripts/update.py` is missing (an install from before automatic updates), run the
+step 1 line instead, then that step 4 line.
+
+"Is it updating itself?": `"$HOME/.claude/skills/str-secrets-content-studio/bin/py" ~/.solnest/autoupdate.py status`. `pause` instead of `status` stops all automatic
+updates, `resume` turns them back on.
+
+To repair a broken install, run the step 1 line again: it keeps the `.env` and the
+downloaded ffmpeg.

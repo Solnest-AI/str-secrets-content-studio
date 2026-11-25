@@ -33,11 +33,23 @@ never types a command. Never ask for an API key in the chat, and never print one
    - **`ERROR: no working Python`:** run step 2 once more. If it repeats, send the full
      output to Ryan (ryan.lefebvre@strsecrets.com).
    - **Every other line `[ok]`** (the `balance` line may say `[!!]`): setup is done. Go on.
-4. Say: "✅ **STR Secrets Content Studio is set up.**" If the `balance` line said `[!!]`,
+4. Turn on automatic updates (required, silent). Run this exactly (Windows: from your Bash
+   tool):
+
+   ```bash
+   SKILL="$HOME/.claude/skills/str-secrets-content-studio"; "$SKILL/bin/py" "$SKILL/scripts/solnest_autoupdate.py" register --name content-studio --folder "$SKILL" --update '{python} scripts/update.py' --after '{python} scripts/setup.py --no-open; {python} scripts/setup.py --help' --undo '{python} scripts/update.py --undo'
+   ```
+
+   From now on the tool keeps itself on the latest release with no one asking: once a day,
+   in the background when Claude Code starts, it installs the newest release and runs
+   setup again. It never touches their `.env`, the downloaded ffmpeg (`bin/`) or any file
+   they added, and if a new release fails setup it puts the old version back by itself.
+   Relay the one line it prints. Nothing else to tell them.
+5. Say: "✅ **STR Secrets Content Studio is set up.**" If the `balance` line said `[!!]`,
    add: "Carousels are free. A video needs about 455 Kie credits (USD 2.28): top up USD 5
    at https://kie.ai/billing before you make one." Then ask: **"Want to make your first one
    now? Paste the link to one of your Airbnb listings and tell me: a carousel or a video?"**
-5. When they answer, make it right here in this chat. No restart: read the instructions
+6. When they answer, make it right here in this chat. No restart: read the instructions
    from the installed skill with your Read tool and follow them from the top, as if the
    skill had been called:
    - **Carousel:** `~/.claude/skills/str-secrets-content-studio/CAROUSEL.md`
@@ -50,7 +62,8 @@ never types a command. Never ask for an API key in the chat, and never print one
    carousel while they do. From the next time they open Claude Code, the skill loads on
    its own: they just say "make me a carousel for ..." or "make me a video for ...".
 
-To update or repair later, run step 2 again: it keeps the `.env` and the downloaded ffmpeg.
+Updates install themselves (step 4). To repair, run step 2 again, then step 4: it keeps the
+`.env` and the downloaded ffmpeg.
 Full detail: [INSTALL.md](INSTALL.md).
 
 ---
@@ -172,8 +185,28 @@ in Instagram. Details in
 
 ## Update
 
-Paste this repo link into Claude Code again and say "update this". Claude reruns the
-installer, which replaces the scripts and keeps your `.env`, ffmpeg and the headless browser.
+Updates install themselves: once a day, in the background when Claude Code starts, the
+newest published release is installed and setup runs again. The `.env`, the downloaded
+ffmpeg (`bin/`) and any file the user added are never touched, and if a new release fails
+setup the old version is put back by itself. Changes the user asked for live in
+`~/.solnest/content-studio/my-instructions.md`, outside this folder, so they survive every update.
+
+Only when the user asks to update now:
+
+```bash
+SKILL="$HOME/.claude/skills/str-secrets-content-studio"; "$SKILL/bin/py" "$SKILL/scripts/update.py" && "$SKILL/bin/py" "$SKILL/scripts/setup.py" --no-open
+```
+
+Then run the automatic-updates line (README "set this up" step 4) once more, so a newer
+auto-updater is picked up. `scripts/update.py --undo` goes back one version. If
+`scripts/update.py` is missing (an install from before automatic updates), run the
+installer instead, then that step 4 line.
+
+"Is it updating itself?": `"$HOME/.claude/skills/str-secrets-content-studio/bin/py" ~/.solnest/autoupdate.py status`. `pause` instead of `status` stops all automatic
+updates, `resume` turns them back on.
+
+To repair a broken install, run the installer again: it keeps the `.env` and the
+downloaded ffmpeg.
 
 ## For developers
 

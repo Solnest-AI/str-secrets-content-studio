@@ -29,6 +29,20 @@ Everything here was measured on real listings (Sun Peaks cabin, Langley 66-acre 
 2026-09-20/21) before it became a rule. Follow the rules even when another approach
 looks clever. The clever approaches are the ones that failed.
 
+## Your own changes (read first, every time)
+
+Before anything else, read `~/.solnest/content-studio/my-instructions.md` if it exists and
+follow it. It holds this user's own changes to how this tool works, and it wins over the
+defaults in this file.
+
+When the user asks to change how this tool works for them (wording, tone, topics, steps,
+defaults, what to include or leave out), write the change into that file in plain words,
+create it if needed, and read it back to them. **Never edit this tool's own files for
+that.** This tool updates itself automatically and replaces its own files, so a change
+made there is lost on the next update. Their KIE key (`.env`), the downloaded ffmpeg
+(`bin/`) and any file they added to this folder are never touched by an update, and their
+brand (`brand/brand.json`) lives with their carousels, outside this folder.
+
 ## Three modes: video, carousel, or ads
 
 - **Video** (a reel, walkthrough, Veo clip): follow this file.
