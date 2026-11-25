@@ -461,10 +461,28 @@ def ensure_key(open_editor=True):
                    f" after KIE_API_KEY= and save: {env_file}   (get one at https://kie.ai/api-key)")
 
 
-# The files that make a folder a copy of this skill, whatever it is called: the same scripts
-# ship in every earlier build of it. Another skill never carries all of them.
+# A folder is an earlier copy of this skill only when it has these files AND its SKILL.md
+# says `name: str-secrets-content-studio`. The files alone are not enough: a different listing
+# video tool ships the same script names, and it must never be moved (2026-11-25).
+COPY_NAME = "str-secrets-content-studio"
 COPY_FINGERPRINT = ("SKILL.md", "CAROUSEL.md", "scripts/make_clips.py", "scripts/assemble.py",
                     "scripts/carousel.py", "scripts/listing_pull.py", "scripts/kie.py")
+
+
+def skill_name(folder):
+    """The `name:` in a folder's SKILL.md front matter, or "" when it cannot be read."""
+    try:
+        lines = (pathlib.Path(folder) / "SKILL.md").read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return ""
+    if not lines or lines[0].strip() != "---":
+        return ""
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        if line.startswith("name:"):
+            return line[5:].strip().strip("'\"")
+    return ""
 
 
 def earlier_copies(skills_root):
@@ -478,7 +496,8 @@ def earlier_copies(skills_root):
         if d.name == SKILL_DIR.name:
             continue
         try:
-            if d.is_dir() and all((d / f).is_file() for f in COPY_FINGERPRINT):
+            if d.is_dir() and all((d / f).is_file() for f in COPY_FINGERPRINT) \
+                    and skill_name(d) == COPY_NAME:
                 if not (SKILL_DIR.exists() and d.resolve() == SKILL_DIR.resolve()):
                     out.append(d)
         except OSError:
