@@ -215,8 +215,11 @@ class Docs(unittest.TestCase):
             self.assertNotIn("solnest stays", text, p.name)
             self.assertNotIn("solnest-cinematic-director", text, p.name)
             self.assertNotIn("solnest video", text, p.name)
-            if SKILL in p.parents:
-                self.assertNotIn("solnest", text.replace("solnest-ai/", ""), p.name)
+            # The shared auto-updater (copied verbatim from the other tools) and its state
+            # folder, ~/.solnest/, are plumbing every tool shares, not branding.
+            if SKILL in p.parents and p.name != "solnest_autoupdate.py":
+                plain = text.replace("solnest-ai/", "").replace("~/.solnest/", "").replace("solnest_autoupdate.py", "")
+                self.assertNotIn("solnest", plain, p.name)
 
     def test_no_em_or_en_dash_in_host_facing_docs(self):
         for p in (ROOT / "README.md", ROOT / "INSTALL.md", SKILL / "CAROUSEL.md"):

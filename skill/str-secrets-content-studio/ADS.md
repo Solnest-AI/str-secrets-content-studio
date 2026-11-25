@@ -8,6 +8,20 @@ host's own brand. No video ads are made here and no people are generated.
 Every rule below was measured on real searches (nine STR markets, 2026-09-17/18; Nashville
 side by side against Meta's own search, 2026-09-28).
 
+## Your own changes (read first, every time)
+
+Before anything else, read `~/.solnest/content-studio/my-instructions.md` if it exists and
+follow it. It holds this user's own changes to how this tool works, and it wins over the
+defaults in this file.
+
+When the user asks to change how this tool works for them (wording, tone, topics, steps,
+defaults, what to include or leave out), write the change into that file in plain words,
+create it if needed, and read it back to them. **Never edit this tool's own files for
+that.** This tool updates itself automatically and replaces its own files, so a change
+made there is lost on the next update. Their KIE key (`.env`), the downloaded ffmpeg
+(`bin/`) and any file they added to this folder are never touched by an update, and their
+brand (`brand/brand.json`) lives with their carousels, outside this folder.
+
 ## What it costs
 
 | Step | Cost |
