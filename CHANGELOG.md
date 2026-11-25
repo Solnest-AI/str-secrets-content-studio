@@ -3,6 +3,10 @@
 ## 1.2.0 (2026-11-24)
 
 Automatic, silent updates that keep the user's own changes:
+- Setup no longer moves a different tool out of the way. An earlier copy of this skill is
+  now recognized by its files and by `name: str-secrets-content-studio` in its SKILL.md.
+  Another tool that ships the same script names (a cinematic listing video tool) stays
+  installed, and its KIE key is left alone.
 - Setup has a new step that turns on automatic updates. Once a day, in the background when
   Claude Code starts, the newest published release (a GitHub release, never untagged work
   on main) is installed and setup runs again. If setup fails on it, the old version is put

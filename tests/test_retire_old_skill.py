@@ -2,7 +2,8 @@
 
 Two copies make the same videos and carousels and answer the same requests, so with both in
 ~/.claude/skills Claude could pick either (2026-09-28: the summit guide linked an earlier build
-for a day before this skill had its own repo). A copy is recognized by its files, not its name.
+for a day before this skill had its own repo). A copy is recognized by its files AND the name in its SKILL.md: the Solnest Cinematic
+Director ships the same script names, is a different tool, and is never moved.
 Setup carries its KIE key over, then moves it to ~/.claude/skills-retired. Nothing is deleted,
 and a symlinked developer checkout is moved as the link only."""
 import os
@@ -21,10 +22,11 @@ FAKE_KEY = "kie_test_" + "0" * 24  # a made-up value, never a real key
 EARLIER = "earlier-content-skill"   # the folder name does not matter, the files do
 
 
-def make_copy(folder, key=FAKE_KEY):
+def make_copy(folder, key=FAKE_KEY, name=setup.COPY_NAME):
     for f in setup.COPY_FINGERPRINT:
         (folder / f).parent.mkdir(parents=True, exist_ok=True)
         (folder / f).write_text("x\n", encoding="utf-8")
+    (folder / "SKILL.md").write_text(f"---\nname: {name}\ndescription: x\n---\n", encoding="utf-8")
     if key is not None:
         (folder / ".env").write_text(f"KIE_API_KEY={key}\n", encoding="utf-8")
     return folder
@@ -76,6 +78,21 @@ class RetireEarlierCopies(unittest.TestCase):
         self.assertEqual(self.run_it(), [])
         for d in (other, partial, self.env.parent):
             self.assertTrue(d.is_dir())
+
+    def test_the_cinematic_director_is_never_moved(self):
+        # same script names, different tool: a host with both installed keeps both
+        cinematic = make_copy(self.skills / "solnest-cinematic-director", name="solnest-cinematic-director")
+        unnamed = make_copy(self.skills / "no-front-matter")
+        (unnamed / "SKILL.md").write_text("x\n", encoding="utf-8")
+        self.assertEqual(self.run_it(), [])
+        self.assertTrue((cinematic / "scripts" / "make_clips.py").is_file())
+        self.assertTrue((cinematic / ".env").is_file())
+        self.assertTrue(unnamed.is_dir())
+        self.assertFalse(self.env.exists())                      # its key is not taken either
+        self.assertFalse((self.home / ".claude" / "skills-retired").exists())
+
+    def test_the_real_skill_file_has_the_name_the_check_looks_for(self):
+        self.assertEqual(setup.skill_name(setup.SKILL_DIR), setup.COPY_NAME)
 
     def test_an_existing_key_is_never_overwritten(self):
         make_copy(self.skills / EARLIER)
